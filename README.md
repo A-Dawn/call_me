@@ -15,11 +15,11 @@
 - **可视化管理**: 提供 REST API 管理立绘和资源。
 - **热插拔**: 支持通过指令动态启停服务。
 
-立绘工作台白痴版（一步一步部署）：`plugins/call_me/AVATAR_STUDIO_USER_GUIDE_LITE_CN.md`  
-立绘工作台详细版：`plugins/call_me/AVATAR_STUDIO_USER_GUIDE_CN.md`
-TTS 配置与部署指南（GPT-SoVITS）：`plugins/call_me/TTS_USER_GUIDE_CN.md`
-TTS 配置与部署指南（豆包双向流式）：`plugins/call_me/DOUBAO_TTS_USER_GUIDE_CN.md`
-ASR 配置与部署指南（推荐 Sherpa）：`plugins/call_me/ASR_USER_GUIDE_CN.md`
+立绘工作台白痴版（一步一步部署）：`AVATAR_STUDIO_USER_GUIDE_LITE_CN.md`  
+立绘工作台详细版：`AVATAR_STUDIO_USER_GUIDE_CN.md`
+TTS 配置与部署指南（GPT-SoVITS）：`TTS_USER_GUIDE_CN.md`
+TTS 配置与部署指南（豆包双向流式）：`DOUBAO_TTS_USER_GUIDE_CN.md`
+ASR 配置与部署指南（推荐 Sherpa）：`ASR_USER_GUIDE_CN.md`
 
 ## 2. 快速开始
 
@@ -36,29 +36,25 @@ ASR 配置与部署指南（推荐 Sherpa）：`plugins/call_me/ASR_USER_GUIDE_C
 
 ### 2.3 外部依赖 (必读)
 
-本插件作为后端服务，必须配合以下外部项目才能完整工作：
+本插件已经内置前端页面（`/` 可直接访问），外部依赖主要是 TTS 与 ASR：
 
-1.  **Frontend (前端客户端)**:
-    - 你需要一个实现了 `CallMe WebSocket Protocol` 的前端页面或 App。
-    - 推荐使用官方配套的前端项目 (React/Vue) 或参考协议自行实现。
-
-2.  **TTS 服务 (语音合成)**:
+1.  **TTS 服务 (语音合成)**:
     - 支持: **GPT-SoVITS** 或 **豆包双向流式 TTS**。
     - 要求: 需配置对应 provider 地址与鉴权参数。
 
-3.  **ASR 服务 (语音转文本)**:
-    - 推荐: **FunASR** (阿里开源的高精度语音识别) 或 **OpenAI Whisper**。
-    - 当前版本已支持 `mock` / `sherpa` / HTTP ASR（如 FunASR/OpenAI 风格接口）。
+2.  **ASR 服务 (语音转文本)**:
+    - 主推: **Sherpa**（本地实时识别，延迟稳定）。
+    - 推荐优先使用 `zipformer2_ctc` 模型。
 
-### 2.4 最低配置要求（按当前默认方案）
+### 2.4 最低配置要求（按 TTS 方案区分）
 
-以下最低要求基于当前默认链路：
+#### 2.4.1 本地 GPT-SoVITS + Sherpa（默认高质量方案）
 
 - `TTS = GPT-SoVITS`（`[tts].type = "sovits"`）
 - `ASR = Sherpa Zipformer-CTC`（`[asr].type = "sherpa"`）
 - 浏览器前端 + 本插件实时 WS 通话
 
-#### 2.4.1 有 GPU（推荐，满足实时体验）
+有 GPU（推荐，满足实时体验）：
 
 - CPU: `>= 6` 物理核（建议 `>= 8`）
 - 内存: `>= 16 GB`（建议 `24 GB`）
@@ -70,7 +66,7 @@ ASR 配置与部署指南（推荐 Sherpa）：`plugins/call_me/ASR_USER_GUIDE_C
 - 这是“可稳定日常使用”的最低线。
 - 若想更低延迟、更高并发，建议直接上 `8C/16T + 32GB + 8~12GB VRAM`。
 
-#### 2.4.2 无 GPU（可运行，不推荐实时主用）
+无 GPU（可运行，不推荐实时主用）：
 
 - CPU: `>= 8` 物理核（建议 `>= 12`）
 - 内存: `>= 24 GB`（建议 `32 GB`）
@@ -79,7 +75,19 @@ ASR 配置与部署指南（推荐 Sherpa）：`plugins/call_me/ASR_USER_GUIDE_C
 说明：
 
 - 纯 CPU 方案通常可以跑通，但延迟会明显升高，实时对话体验会下降。
-- 无 GPU 场景更建议：本机跑 ASR，TTS 使用外部服务，或先用 `tts.type = "mock"` 联调。
+- 无 GPU 场景更建议：本机跑 Sherpa ASR，TTS 使用豆包双向流式服务。
+
+#### 2.4.2 豆包双向流式 TTS + Sherpa（低本地占用方案）
+
+- `TTS = 豆包`（`[tts].type = "doubao_ws"`，远端合成）
+- `ASR = Sherpa Zipformer-CTC`（本地）
+- 本地资源主要消耗在 Sherpa ASR，内存占用显著低于本地 SoVITS 方案。
+
+建议起步配置：
+
+- CPU: `>= 2` 物理核（建议 `>= 4`）
+- 内存: `>= 4 GB`
+- GPU: 非必须
 
 ### 2.5 手动控制指令
 
@@ -117,7 +125,7 @@ sample_rate = 24000     # 输出音频采样率
 channels = 1            # 单声道
 
 [tts]
-type = "sovits"         # "sovits" / "doubao_ws" / "mock"
+type = "sovits"         # "sovits" / "doubao_ws"
 api_url = "http://127.0.0.1:9880"  # doubao_ws 时填写 wss 地址
 voice_id = "default"
 doubao_app_key = ""
@@ -126,14 +134,13 @@ doubao_resource_id = ""
 doubao_voice_type = ""  # 独立字段，不复用 voice_id
 
 [asr]
-type = "mock"           # "funasr", "openai", "sherpa" 或 "mock"
-api_url = "http://127.0.0.1:10095"
+type = "sherpa"         # 推荐生产使用 sherpa
+api_url = "http://127.0.0.1:10095"  # 仅非 sherpa 模式生效
 
 [sherpa]
-tokens_path = "D:/models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/tokens.txt"
-encoder_path = "D:/models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/encoder-epoch-99-avg-1.onnx"
-decoder_path = "D:/models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/decoder-epoch-99-avg-1.onnx"
-joiner_path = "D:/models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/joiner-epoch-99-avg-1.onnx"
+model_kind = "zipformer2_ctc"   # 推荐 CTC 单文件模型
+tokens_path = "D:/models/sherpa-onnx-streaming-zipformer-ctc-zh-int8-2025-06-30/tokens.txt"
+model_path = "D:/models/sherpa-onnx-streaming-zipformer-ctc-zh-int8-2025-06-30/model.int8.onnx"
 num_threads = 1
 provider = "cpu"
 ```
