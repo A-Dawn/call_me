@@ -14,6 +14,7 @@
 立绘工作台白痴版（一步一步部署）：`plugins/call_me/AVATAR_STUDIO_USER_GUIDE_LITE_CN.md`  
 立绘工作台详细版：`plugins/call_me/AVATAR_STUDIO_USER_GUIDE_CN.md`
 TTS 配置与部署指南（GPT-SoVITS）：`plugins/call_me/TTS_USER_GUIDE_CN.md`
+TTS 配置与部署指南（豆包双向流式）：`plugins/call_me/DOUBAO_TTS_USER_GUIDE_CN.md`
 ASR 配置与部署指南（推荐 Sherpa）：`plugins/call_me/ASR_USER_GUIDE_CN.md`
 
 ## 2. 快速开始
