@@ -754,6 +754,9 @@ async def process_turn(session, llm, chunker, text, plugin_config=None, timing_c
             if sent_stream_audio or session.is_cancelled:
                 return
 
+            if getattr(tts_manager, "type", "") == "doubao_ws":
+                raise RuntimeError("[TTS] Doubao stream returned no audio; fallback synthesize() is disabled")
+
             wav_bytes = await tts_manager.synthesize(chunk_text, "voice_id")
             if wav_bytes:
                 await send_speaking_state_once()

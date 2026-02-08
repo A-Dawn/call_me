@@ -38,8 +38,8 @@ ASR 配置与部署指南（推荐 Sherpa）：`plugins/call_me/ASR_USER_GUIDE_C
     - 推荐使用官方配套的前端项目 (React/Vue) 或参考协议自行实现。
 
 2.  **TTS 服务 (语音合成)**:
-    - 推荐: **GPT-SoVITS** (提供高品质的角色语音复刻)。
-    - 要求: 需要部署 GPT-SoVITS 的 API 服务，并在插件中配置 API 地址。
+    - 支持: **GPT-SoVITS** 或 **豆包双向流式 TTS**。
+    - 要求: 需配置对应 provider 地址与鉴权参数。
 
 3.  **ASR 服务 (语音转文本)**:
     - 推荐: **FunASR** (阿里开源的高精度语音识别) 或 **OpenAI Whisper**。
@@ -112,9 +112,13 @@ sample_rate = 24000     # 输出音频采样率
 channels = 1            # 单声道
 
 [tts]
-type = "sovits"         # "sovits" 或 "mock"
-api_url = "http://127.0.0.1:9880"
+type = "sovits"         # "sovits" / "doubao_ws" / "mock"
+api_url = "http://127.0.0.1:9880"  # doubao_ws 时填写 wss 地址
 voice_id = "default"
+doubao_app_key = ""
+doubao_access_key = ""
+doubao_resource_id = ""
+doubao_voice_type = ""  # 独立字段，不复用 voice_id
 
 [asr]
 type = "mock"           # "funasr", "openai", "sherpa" 或 "mock"
@@ -128,6 +132,13 @@ joiner_path = "D:/models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02
 num_threads = 1
 provider = "cpu"
 ```
+
+### 3.1 TTS provider 说明
+
+- `tts.type = "sovits"`: 走 GPT-SoVITS HTTP 接口。
+- `tts.type = "doubao_ws"`: 走豆包双向流式 TTS（WebSocket）。
+- `doubao_voice_type` 与 `voice_id` 独立；豆包模式只使用 `doubao_voice_type`。
+- 豆包模式采用显式失败策略：鉴权失败、协议异常、无音频返回时直接报错，不自动回退到其他 TTS。
 
 ---
 

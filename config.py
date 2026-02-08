@@ -46,14 +46,24 @@ PLUGIN_CONFIG_SCHEMA = {
         "playback_schedule_lead_ms": ConfigField(type=int, default=30, description="前端音频调度提前量(ms)，用于平滑片段衔接")
     },
     "tts": {
-        "type": ConfigField(type=str, default="sovits", description="TTS 类型: 'sovits' 或 'mock'"),
-        "api_url": ConfigField(type=str, default="http://127.0.0.1:9880", description="TTS API 地址"),
+        "type": ConfigField(type=str, default="sovits", description="TTS 类型: 'sovits', 'doubao_ws' 或 'mock'"),
+        "api_url": ConfigField(type=str, default="http://127.0.0.1:9880", description="TTS 地址: sovits 为 HTTP 地址, doubao_ws 为 WebSocket 地址"),
         "voice_id": ConfigField(type=str, default="default", description="默认音色ID"),
         "connect_timeout_sec": ConfigField(type=float, default=3.0, description="TTS 连接超时(秒)"),
         "read_timeout_sec": ConfigField(type=float, default=20.0, description="TTS 读取超时(秒)"),
         "total_timeout_sec": ConfigField(type=float, default=0.0, description="TTS 总超时(秒)，<=0 表示不限制"),
         "conn_limit": ConfigField(type=int, default=32, description="TTS HTTP 连接池上限"),
         "stream_chunk_size": ConfigField(type=int, default=8192, description="TTS 流式读取块大小(字节)"),
+        # 豆包双向流式 TTS 参数 (type=doubao_ws 时生效)
+        "doubao_app_key": ConfigField(type=str, default="", description="豆包鉴权 App Key (X-Api-App-Key)"),
+        "doubao_access_key": ConfigField(type=str, default="", description="豆包鉴权 Access Key (X-Api-Access-Key)"),
+        "doubao_resource_id": ConfigField(type=str, default="", description="豆包资源ID (X-Api-Resource-Id)"),
+        "doubao_voice_type": ConfigField(type=str, default="", description="豆包音色ID/voice_type (独立于 voice_id)"),
+        "doubao_namespace": ConfigField(type=str, default="BidirectionalTTS", description="豆包双向流式命名空间"),
+        "doubao_audio_format": ConfigField(type=str, default="pcm", description="豆包音频格式，当前仅支持 pcm"),
+        "doubao_sample_rate": ConfigField(type=int, default=24000, description="豆包输出采样率"),
+        "doubao_enable_timestamp": ConfigField(type=bool, default=False, description="豆包是否启用时间戳"),
+        "doubao_disable_markdown_filter": ConfigField(type=bool, default=False, description="豆包是否禁用 markdown 过滤"),
         # SoVITS 必须参数
         "ref_audio_path": ConfigField(type=str, default="archive_jingyuan_1.wav", description="参考音频路径"),
         "prompt_text": ConfigField(type=str, default="我是「罗浮」云骑将军景元。不必拘谨，「将军」只是一时的身份，你称呼我景元便可", description="参考音频对应的文本"),
