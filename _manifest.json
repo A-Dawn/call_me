@@ -1,0 +1,29 @@
+{
+  "manifest_version": 1,
+  "name": "Call Me",
+  "version": "0.1.0",
+  "description": "基于 FastAPI 的实时语音通话插件，支持 SoVITS TTS、VAD、ASR 及立绘驱动。",
+  "author": {
+    "name": "A-Dawn"
+  },
+  "license": "AGPL-3.0",
+  "keywords": [
+    "fastapi",
+    "websocket",
+    "tts",
+    "sovits",
+    "vad",
+    "realtime",
+    "call"
+  ],
+  "categories": [
+    "communication",
+    "audio"
+  ],
+  "plugin_info": {
+    "is_built_in": false,
+    "plugin_type": "general",
+    "components": []
+  },
+  "id": "A-Dawn Team.call_me"
+}
