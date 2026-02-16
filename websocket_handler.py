@@ -591,6 +591,9 @@ async def process_turn(session, llm, chunker, text, plugin_config=None, timing_c
         audio_cfg = plugin_config.get("audio", {})
         if isinstance(audio_cfg, dict):
             output_sample_rate = int(audio_cfg.get("sample_rate", 24000))
+        tts_cfg = plugin_config.get("tts", {})
+        if isinstance(tts_cfg, dict) and str(tts_cfg.get("type", "")).strip() == "cosyvoice_http":
+            output_sample_rate = int(tts_cfg.get("cosyvoice_sample_rate", output_sample_rate))
 
     model_config_name = "replyer"
     if isinstance(llm_cfg, dict):

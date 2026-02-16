@@ -35,7 +35,8 @@ class CallMePlugin(BasePlugin):
         "asr": "语音识别(ASR)配置",
         "sherpa": "Sherpa 本地 ASR 模型配置",
         "llm": "大语言模型生成配置",
-        "prethink": "预思考配置（异步预测下一轮用户意图）"
+        "prethink": "预思考配置（异步预测下一轮用户意图）",
+        "model_downloader": "ASR 模型下载与许可证策略配置",
     }
     
     # _server_thread 等属性已移至 CallMeService，此处可清理

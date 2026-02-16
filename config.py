@@ -46,14 +46,19 @@ PLUGIN_CONFIG_SCHEMA = {
         "playback_schedule_lead_ms": ConfigField(type=int, default=30, description="前端音频调度提前量(ms)，用于平滑片段衔接")
     },
     "tts": {
-        "type": ConfigField(type=str, default="sovits", description="TTS 类型: 'sovits', 'doubao_ws' 或 'mock'"),
-        "api_url": ConfigField(type=str, default="http://127.0.0.1:9880", description="TTS 地址: sovits 为 HTTP 地址, doubao_ws 为 WebSocket 地址"),
+        "type": ConfigField(type=str, default="sovits", description="TTS 类型: 'sovits', 'doubao_ws', 'cosyvoice_http' 或 'mock'"),
+        "api_url": ConfigField(type=str, default="http://127.0.0.1:9880", description="TTS 地址: sovits/cosyvoice_http 为 HTTP 地址, doubao_ws 为 WebSocket 地址"),
         "voice_id": ConfigField(type=str, default="default", description="默认音色ID"),
         "connect_timeout_sec": ConfigField(type=float, default=3.0, description="TTS 连接超时(秒)"),
         "read_timeout_sec": ConfigField(type=float, default=20.0, description="TTS 读取超时(秒)"),
         "total_timeout_sec": ConfigField(type=float, default=0.0, description="TTS 总超时(秒)，<=0 表示不限制"),
         "conn_limit": ConfigField(type=int, default=32, description="TTS HTTP 连接池上限"),
         "stream_chunk_size": ConfigField(type=int, default=8192, description="TTS 流式读取块大小(字节)"),
+        # CosyVoice HTTP fastapi runtime 参数 (type=cosyvoice_http 时生效)
+        "cosyvoice_mode": ConfigField(type=str, default="cross_lingual", description="CosyVoice 模式: 'cross_lingual' 或 'zero_shot'"),
+        "cosyvoice_ref_audio_path": ConfigField(type=str, default="", description="CosyVoice 参考音频路径(prompt_wav)"),
+        "cosyvoice_ref_text": ConfigField(type=str, default="", description="CosyVoice 参考音频文本(prompt_text, zero_shot 模式必填)"),
+        "cosyvoice_sample_rate": ConfigField(type=int, default=22050, description="CosyVoice PCM 输出采样率"),
         # 豆包双向流式 TTS 参数 (type=doubao_ws 时生效)
         "doubao_app_key": ConfigField(type=str, default="", description="豆包鉴权 App Key (X-Api-App-Key)"),
         "doubao_access_key": ConfigField(type=str, default="", description="豆包鉴权 Access Key (X-Api-Access-Key)"),
@@ -69,7 +74,9 @@ PLUGIN_CONFIG_SCHEMA = {
         "prompt_text": ConfigField(type=str, default="我是「罗浮」云骑将军景元。不必拘谨，「将军」只是一时的身份，你称呼我景元便可", description="参考音频对应的文本"),
         "prompt_lang": ConfigField(type=str, default="zh", description="参考音频语言"),
         "text_lang": ConfigField(type=str, default="zh", description="目标合成语言"),
-        "text_split_method": ConfigField(type=str, default="cut5", description="文本切分方法")
+        "text_split_method": ConfigField(type=str, default="cut5", description="文本切分方法"),
+        "gpt_weights": ConfigField(type=str, default="", description="可选: SoVITS GPT/T2S 权重路径"),
+        "sovits_weights": ConfigField(type=str, default="", description="可选: SoVITS VITS 权重路径"),
     },
     "asr": {
         "type": ConfigField(type=str, default="sherpa", description="ASR 类型: 'sherpa'(推荐), 'funasr', 'openai', 'mock'"),
@@ -97,5 +104,25 @@ PLUGIN_CONFIG_SCHEMA = {
         "max_history_messages": ConfigField(type=int, default=10, description="预思考使用的历史消息数量上限"),
         "max_output_chars": ConfigField(type=int, default=220, description="预思考结果最大字符数"),
         "min_user_text_chars": ConfigField(type=int, default=2, description="触发预思考的最小用户输入长度")
+    },
+    "model_downloader": {
+        "license_allowlist": ConfigField(
+            type=list,
+            default=[
+                "Apache-2.0",
+                "MIT",
+                "BSD-2-Clause",
+                "BSD-3-Clause",
+                "MPL-2.0",
+                "LGPL-3.0",
+                "GPL-3.0",
+                "AGPL-3.0",
+            ],
+            description="模型下载许可证白名单",
+        ),
+        "connect_timeout_sec": ConfigField(type=float, default=10.0, description="模型扫描连接超时(秒)"),
+        "read_timeout_sec": ConfigField(type=float, default=30.0, description="模型扫描读取超时(秒)"),
+        "download_timeout_sec": ConfigField(type=float, default=600.0, description="模型下载总超时(秒)"),
+        "enable_github_sources": ConfigField(type=bool, default=True, description="是否启用 GitHub 来源巡查"),
     }
 }

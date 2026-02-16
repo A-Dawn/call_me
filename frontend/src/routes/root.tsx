@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { PhoneCall, SlidersHorizontal } from 'lucide-react'
+import { PhoneCall, SlidersHorizontal, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAtomValue } from 'jotai'
@@ -34,6 +34,18 @@ export function RootLayout() {
                   className={cn('text-sm', conn.status === 'connected' && !pathname.startsWith('/settings') && 'text-primary')}
                 >
                   <Link to="/">通话</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant={pathname.startsWith('/settings/voice-setup') ? 'secondary' : 'ghost'}
+                  className="text-sm"
+                >
+                  <Link to="/settings/voice-setup">
+                    <span className="mr-1 inline-flex">
+                      <Volume2 className="h-4 w-4" />
+                    </span>
+                    语音配置
+                  </Link>
                 </Button>
                 <Button asChild variant={pathname.startsWith('/settings') ? 'secondary' : 'ghost'} className="text-sm">
                   <Link to="/settings/connection">

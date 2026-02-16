@@ -39,7 +39,7 @@ ASR 配置与部署指南（推荐 Sherpa）：`ASR_USER_GUIDE_CN.md`
 本插件已经内置前端页面（`/` 可直接访问），外部依赖主要是 TTS 与 ASR：
 
 1.  **TTS 服务 (语音合成)**:
-    - 支持: **GPT-SoVITS** 或 **豆包双向流式 TTS**。
+    - 支持: **GPT-SoVITS**、**豆包双向流式 TTS** 或 **CosyVoice HTTP(FastAPI runtime)**。
     - 要求: 需配置对应 provider 地址与鉴权参数。
 
 2.  **ASR 服务 (语音转文本)**:
@@ -125,13 +125,17 @@ sample_rate = 24000     # 输出音频采样率
 channels = 1            # 单声道
 
 [tts]
-type = "sovits"         # "sovits" / "doubao_ws"
-api_url = "http://127.0.0.1:9880"  # doubao_ws 时填写 wss 地址
+type = "sovits"         # "sovits" / "doubao_ws" / "cosyvoice_http"
+api_url = "http://127.0.0.1:9880"  # doubao_ws 时填写 wss 地址, cosyvoice_http 填 FastAPI 根地址
 voice_id = "default"
 doubao_app_key = ""
 doubao_access_key = ""
 doubao_resource_id = ""
 doubao_voice_type = ""  # 独立字段，不复用 voice_id
+cosyvoice_mode = "cross_lingual"   # "cross_lingual" / "zero_shot"
+cosyvoice_ref_audio_path = ""
+cosyvoice_ref_text = ""            # zero_shot 模式必填
+cosyvoice_sample_rate = 22050
 
 [asr]
 type = "sherpa"         # 推荐生产使用 sherpa
@@ -149,7 +153,11 @@ provider = "cpu"
 
 - `tts.type = "sovits"`: 走 GPT-SoVITS HTTP 接口。
 - `tts.type = "doubao_ws"`: 走豆包双向流式 TTS（WebSocket）。
+- `tts.type = "cosyvoice_http"`: 走 CosyVoice 官方 FastAPI 协议（`multipart/form-data` -> 原始 PCM 流）。
 - `doubao_voice_type` 与 `voice_id` 独立；豆包模式只使用 `doubao_voice_type`。
+- CosyVoice 模式:
+  - `cross_lingual`: `/inference_cross_lingual`，需要 `cosyvoice_ref_audio_path`
+  - `zero_shot`: `/inference_zero_shot`，除参考音频外还需要 `cosyvoice_ref_text`
 - 豆包模式采用显式失败策略：鉴权失败、协议异常、无音频返回时直接报错，不自动回退到其他 TTS。
 
 ---

@@ -1,4 +1,4 @@
-# Call Me 插件 TTS 配置与部署指南（GPT-SoVITS）
+# Call Me 插件 TTS 配置与部署指南（GPT-SoVITS / CosyVoice）
 
 本文专门讲 `plugins/call_me` 的 TTS 配置方法。  
 默认场景：你使用的是 **GPT-SoVITS 一键包**，目录类似：
@@ -12,10 +12,12 @@
 
 ## 1. 当前插件的 TTS 工作方式（先看这个）
 
-`call_me` 当前只支持这两种 `tts.type`：
+`call_me` 当前支持这些 `tts.type`：
 
-1. `sovits`：真实调用 GPT-SoVITS 的 HTTP 接口
-2. `mock`：不做真实合成（测试用）
+1. `sovits`：调用 GPT-SoVITS 的 HTTP 接口
+2. `doubao_ws`：调用豆包双向流式 WebSocket 接口（见 `DOUBAO_TTS_USER_GUIDE_CN.md`）
+3. `cosyvoice_http`：调用 CosyVoice 官方 FastAPI runtime（HTTP multipart 流式）
+4. `mock`：不做真实合成（测试用）
 
 当 `type = "sovits"` 时，插件会请求：
 
@@ -31,6 +33,25 @@
 - `text_split_method`
 - `streaming_mode`（流式时 `true`，兜底非流式时 `false`）
 - `media_type=wav`
+- `gpt_weights`（可选，自定义后端可直接使用）
+- `sovits_weights`（可选，自定义后端可直接使用）
+
+若配置了 `gpt_weights/sovits_weights`，插件会优先尝试调用：
+
+- `GET {tts.api_url}/set_gpt_weights?weights_path=...`
+- `GET {tts.api_url}/set_sovits_weights?weights_path=...`
+
+以兼容官方 `api_v2.py` 的动态换模接口。
+
+`cosyvoice_http`（CosyVoice 官方 `runtime/python/fastapi/server.py` 协议）请求方式：
+
+- `POST {tts.api_url}/inference_cross_lingual`（`cosyvoice_mode = "cross_lingual"`）
+- `POST {tts.api_url}/inference_zero_shot`（`cosyvoice_mode = "zero_shot"`）
+- `multipart/form-data` 字段：
+  - `tts_text`
+  - `prompt_wav`（来自 `cosyvoice_ref_audio_path`）
+  - `prompt_text`（仅 `zero_shot` 必填，来自 `cosyvoice_ref_text`）
+- 返回：原始 PCM16 流（插件会按 `cosyvoice_sample_rate` 封装 WAV 下发前端播放）
 
 实现细节：
 
@@ -89,6 +110,8 @@ prompt_text = "与你的参考音频完全对应的文本"
 prompt_lang = "ja"
 text_lang = "zh"
 text_split_method = "cut5"
+gpt_weights = ""    # 可选，GPT/T2S 权重路径
+sovits_weights = "" # 可选，SoVITS/VITS 权重路径
 ```
 
 关键点：
@@ -96,6 +119,31 @@ text_split_method = "cut5"
 1. `ref_audio_path` 必须是你机器上真实存在的文件绝对路径。
 2. `prompt_text` 必须和参考音频内容匹配，否则音色质量会明显下降。
 3. `prompt_lang` 是参考音频语言，`text_lang` 是目标合成语言。
+
+### 3.1 CosyVoice HTTP 配置示例（官方 FastAPI）
+
+```toml
+[tts]
+type = "cosyvoice_http"
+api_url = "http://127.0.0.1:50000"
+voice_id = "default"
+
+connect_timeout_sec = 3.0
+read_timeout_sec = 20.0
+total_timeout_sec = 0.0
+conn_limit = 32
+stream_chunk_size = 8192
+
+cosyvoice_mode = "cross_lingual" # 或 "zero_shot"
+cosyvoice_ref_audio_path = "D:\\CosyVoice\\asset\\zero_shot_prompt.wav"
+cosyvoice_ref_text = ""           # zero_shot 模式必须填写
+cosyvoice_sample_rate = 22050
+```
+
+CosyVoice 模式选择：
+
+1. `cross_lingual`：只需要 `cosyvoice_ref_audio_path`
+2. `zero_shot`：需要 `cosyvoice_ref_audio_path + cosyvoice_ref_text`
 
 ---
 
@@ -165,6 +213,20 @@ text_split_method = "cut5"
 处理：必须改用一键包解释器：
 
 - `.\runtime\python.exe ...`
+
+## 6.5 症状：CosyVoice 模式返回 422/400
+
+常见原因：
+
+1. `api_url` 错误（不是 FastAPI 根地址）
+2. `cosyvoice_mode` 与参数不匹配（`zero_shot` 缺 `cosyvoice_ref_text`）
+3. `cosyvoice_ref_audio_path` 文件不存在或不可读
+
+处理：
+
+1. 先确认服务地址可访问（例如 `http://127.0.0.1:50000/docs`）
+2. 检查 `tts.cosyvoice_mode` 和 `tts.cosyvoice_ref_text`
+3. 检查参考音频绝对路径与读取权限
 
 ---
 

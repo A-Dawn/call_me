@@ -95,12 +95,14 @@ def create_app() -> FastAPI:
         return {"status": "ok", "service": "call_me_plugin"}
 
     # 注册 API 路由
-    from .routers import assets, presets, avatar_map, avatar_characters
+    from .routers import assets, presets, avatar_map, avatar_characters, config_wizard, asr_models
 
     app.include_router(assets.router)
     app.include_router(presets.router)
     app.include_router(avatar_map.router)
     app.include_router(avatar_characters.router)
+    app.include_router(config_wizard.router)
+    app.include_router(asr_models.router)
 
     # 注册 WebSocket 路由
     from .websocket_handler import router as ws_router

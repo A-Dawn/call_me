@@ -7,6 +7,7 @@ import { SettingsConnectionPage } from './routes.settings.connection'
 import { SettingsAvatarPage } from './routes.settings.avatar'
 import { SettingsAvatarStudioPage } from './routes.settings.avatar-studio'
 import { SettingsDiagnosticsPage } from './routes.settings.diagnostics'
+import { SettingsVoiceSetupPage } from './routes.settings.voice-setup'
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -60,6 +61,12 @@ const settingsDiagnosticsRoute = createRoute({
   component: SettingsDiagnosticsPage,
 })
 
+const settingsVoiceSetupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings/voice-setup',
+  component: SettingsVoiceSetupPage,
+})
+
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   assetsRoute,
@@ -69,4 +76,5 @@ export const routeTree = rootRoute.addChildren([
   settingsAvatarRoute,
   settingsAvatarStudioRoute,
   settingsDiagnosticsRoute,
+  settingsVoiceSetupRoute,
 ])

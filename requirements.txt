@@ -4,3 +4,12 @@ sqlalchemy
 aiosqlite
 aiohttp
 python-multipart
+tomlkit
+pydantic
+
+# Optional: WebRTC VAD mode (`[vad].mode = "webrtc"`)
+webrtcvad
+
+# Optional: Sherpa ASR (`[asr].type = "sherpa"`)
+sherpa-onnx
+numpy

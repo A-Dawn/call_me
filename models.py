@@ -77,3 +77,43 @@ class AvatarRuntime(Base):
     runtime_id = Column(String, primary_key=True, index=True)  # default
     active_character_id = Column(String, index=True, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AsrModelSourceCustom(Base):
+    __tablename__ = "asr_model_sources_custom"
+
+    source_id = Column(String, primary_key=True, index=True)
+    repo = Column(String, nullable=False)
+    enabled = Column(Boolean, nullable=False, default=False)
+    channels_json = Column(Text, nullable=False, default='["releases"]')
+    file_patterns_json = Column(Text, nullable=False, default='["*.tar.bz2","*.tar.gz","*.zip"]')
+    sha256_map_json = Column(Text, nullable=False, default="{}")
+    license_spdx = Column(String, nullable=False, default="")
+    license_url = Column(String, nullable=False, default="")
+    extract_layout = Column(String, nullable=False, default="auto")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ModelLicenseAcceptance(Base):
+    __tablename__ = "model_license_acceptance"
+
+    acceptance_id = Column(String, primary_key=True, index=True)
+    source_id = Column(String, index=True, nullable=False)
+    license_spdx = Column(String, nullable=False, default="")
+    accepted_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AsrInstalledModel(Base):
+    __tablename__ = "asr_installed_models"
+
+    install_id = Column(String, primary_key=True, index=True)
+    source_id = Column(String, index=True, nullable=False)
+    artifact_key = Column(String, index=True, nullable=False)
+    artifact_name = Column(String, nullable=False)
+    channel = Column(String, nullable=False, default="releases")
+    download_url = Column(Text, nullable=False)
+    sha256 = Column(String, nullable=False)
+    install_dir = Column(Text, nullable=False)
+    manifest_json = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

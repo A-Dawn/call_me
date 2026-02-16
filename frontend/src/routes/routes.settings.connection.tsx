@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+﻿import { useMemo } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useCallSession } from '@/context/call-session-context'
@@ -40,6 +41,18 @@ export function SettingsConnectionPage() {
           </div>
         </div>
 
+        <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium">语音配置向导</div>
+              <div className="mt-1 text-xs text-muted-foreground">快速完成 ASR/TTS 配置、模型扫描下载与一键应用。</div>
+            </div>
+            <Button asChild>
+              <Link to="/settings/voice-setup">打开向导</Link>
+            </Button>
+          </div>
+        </div>
+
         <div className="rounded-xl border border-border/70 bg-background/75 p-4 text-sm">
           <div className="font-medium">接口地址</div>
           <div className="mt-3 space-y-2 font-mono text-xs text-muted-foreground">
@@ -55,3 +68,4 @@ export function SettingsConnectionPage() {
     </SettingsShell>
   )
 }
+

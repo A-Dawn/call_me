@@ -1,12 +1,15 @@
+import asyncio
 import copy
 import json
 import logging
 import uuid
+from pathlib import Path
 from typing import AsyncGenerator, Dict, Optional
 
 import aiohttp
 
 from ..models import TTSProvider as TTSProviderModel  # DB Model
+from ..utils.audio import pcm16_to_wav_bytes
 from .volc_tts_protocol import (
     EventType,
     MessageType,
@@ -32,6 +35,11 @@ class TTSManager:
         self._providers: Dict[str, TTSProviderModel] = {}
         # HTTP Session
         self._http_session: Optional[aiohttp.ClientSession] = None
+        # SoVITS 权重动态切换状态
+        self._sovits_weight_lock = asyncio.Lock()
+        self._active_gpt_weights: Optional[str] = None
+        self._active_sovits_weights: Optional[str] = None
+        self._sovits_set_weights_supported: Optional[bool] = None
 
     @staticmethod
     def _as_bool(value, default: bool = False) -> bool:
@@ -62,8 +70,11 @@ class TTSManager:
         """配置 TTS Manager"""
         self.config = config
         self.type = config.get("type", "mock")
+        prev_api_url = getattr(self, "api_url", "")
         self.api_url = config.get("api_url", "http://127.0.0.1:9880")
         self.default_voice_id = config.get("voice_id", "default")
+        self.gpt_weights = str(config.get("gpt_weights", config.get("gpt_weights_path", "")) or "").strip()
+        self.sovits_weights = str(config.get("sovits_weights", config.get("sovits_weights_path", "")) or "").strip()
         self.connect_timeout_sec = max(0.2, float(config.get("connect_timeout_sec", 3.0)))
         self.read_timeout_sec = max(0.5, float(config.get("read_timeout_sec", 20.0)))
         total_timeout = config.get("total_timeout_sec", None)
@@ -74,6 +85,10 @@ class TTSManager:
         self.total_timeout_sec = None if (total_timeout_val is None or total_timeout_val <= 0) else total_timeout_val
         self.conn_limit = max(4, int(config.get("conn_limit", 32)))
         self._config_error: Optional[str] = None
+        self._sovits_set_weights_supported = None
+        if prev_api_url.rstrip("/") != str(self.api_url).rstrip("/"):
+            self._active_gpt_weights = None
+            self._active_sovits_weights = None
 
         # Doubao/Volcengine bidirectional streaming config
         self.doubao_app_key = str(config.get("doubao_app_key", "") or "").strip()
@@ -85,6 +100,11 @@ class TTSManager:
         self.doubao_sample_rate = max(8000, int(config.get("doubao_sample_rate", 24000)))
         self.doubao_enable_timestamp = self._as_bool(config.get("doubao_enable_timestamp", False), False)
         self.doubao_disable_markdown_filter = self._as_bool(config.get("doubao_disable_markdown_filter", False), False)
+        # CosyVoice HTTP fastapi runtime config
+        self.cosyvoice_mode = str(config.get("cosyvoice_mode", "cross_lingual") or "cross_lingual").strip().lower()
+        self.cosyvoice_ref_audio_path = str(config.get("cosyvoice_ref_audio_path", "") or "").strip()
+        self.cosyvoice_ref_text = str(config.get("cosyvoice_ref_text", "") or "").strip()
+        self.cosyvoice_sample_rate = max(8000, int(config.get("cosyvoice_sample_rate", 22050)))
 
         if self.type == "doubao_ws":
             missing = []
@@ -102,9 +122,27 @@ class TTSManager:
                 self._config_error = f"missing required doubao config fields: {', '.join(missing)}"
             if self.doubao_audio_format != "pcm":
                 self._config_error = "doubao_audio_format must be 'pcm' in current implementation"
+        if self.type == "cosyvoice_http":
+            missing = []
+            if not self.api_url:
+                missing.append("api_url")
+            if not self.cosyvoice_ref_audio_path:
+                missing.append("cosyvoice_ref_audio_path")
+            if self.cosyvoice_mode not in {"cross_lingual", "zero_shot"}:
+                self._config_error = "cosyvoice_mode must be 'cross_lingual' or 'zero_shot'"
+            if self.cosyvoice_mode == "zero_shot" and not self.cosyvoice_ref_text:
+                missing.append("cosyvoice_ref_text")
+            if missing and not self._config_error:
+                self._config_error = f"missing required cosyvoice config fields: {', '.join(missing)}"
+            if (
+                self.cosyvoice_ref_audio_path
+                and not Path(self.cosyvoice_ref_audio_path).exists()
+                and not self._config_error
+            ):
+                self._config_error = "cosyvoice_ref_audio_path does not exist"
 
     def _build_sovits_params(self, text: str, streaming_mode: bool) -> Dict:
-        return {
+        params = {
             "text": text,
             "text_lang": self.config.get("text_lang", "zh"),
             "ref_audio_path": self.config.get("ref_audio_path", ""),
@@ -114,6 +152,57 @@ class TTSManager:
             "streaming_mode": "true" if streaming_mode else "false",
             "media_type": "wav",
         }
+        # 兼容支持在 /tts 上直接接收权重参数的自定义 SoVITS 后端。
+        if self.gpt_weights:
+            params["gpt_weights"] = self.gpt_weights
+        if self.sovits_weights:
+            params["sovits_weights"] = self.sovits_weights
+        return params
+
+    async def _set_sovits_weights(self, endpoint: str, weights_path: str) -> bool:
+        if not weights_path:
+            return True
+        if self._sovits_set_weights_supported is False:
+            return False
+
+        url = f"{self.api_url.rstrip('/')}{endpoint}"
+        session = await self.get_session()
+        try:
+            async with session.get(url, params={"weights_path": weights_path}) as resp:
+                if resp.status == 200:
+                    self._sovits_set_weights_supported = True
+                    return True
+
+                error_text = await resp.text()
+                if resp.status in (404, 405):
+                    self._sovits_set_weights_supported = False
+                    logger.warning(
+                        f"[TTS] SoVITS endpoint unsupported ({resp.status}) {url}. "
+                        "Will skip /set_*_weights and only pass /tts params."
+                    )
+                    return False
+
+                self._sovits_set_weights_supported = True
+                logger.warning(
+                    f"[TTS] SoVITS weight switch failed {resp.status} {url}: {error_text}"
+                )
+                return False
+        except Exception as e:
+            logger.warning(f"[TTS] SoVITS weight switch request failed {url}: {e}")
+            return False
+
+    async def _ensure_sovits_weights(self):
+        if self.type != "sovits":
+            return
+        if not self.gpt_weights and not self.sovits_weights:
+            return
+        async with self._sovits_weight_lock:
+            if self.gpt_weights and self.gpt_weights != self._active_gpt_weights:
+                if await self._set_sovits_weights("/set_gpt_weights", self.gpt_weights):
+                    self._active_gpt_weights = self.gpt_weights
+            if self.sovits_weights and self.sovits_weights != self._active_sovits_weights:
+                if await self._set_sovits_weights("/set_sovits_weights", self.sovits_weights):
+                    self._active_sovits_weights = self.sovits_weights
 
     async def synthesize_stream(
         self, text: str, voice_id: str = None, provider_id: str = "default"
@@ -138,11 +227,18 @@ class TTSManager:
             async for chunk in self._synthesize_stream_doubao(text):
                 yield chunk
             return
+        if self.type == "cosyvoice_http":
+            if self._config_error:
+                raise RuntimeError(f"[TTS] CosyVoice config invalid: {self._config_error}")
+            async for chunk in self._synthesize_stream_cosyvoice(text):
+                yield chunk
+            return
 
         logger.warning(f"[TTS] Unsupported provider type: {self.type}")
         return
 
     async def _synthesize_stream_sovits(self, text: str) -> AsyncGenerator[bytes, None]:
+        await self._ensure_sovits_weights()
         endpoint = f"{self.api_url.rstrip('/')}/tts"
         params = self._build_sovits_params(text, streaming_mode=True)
         chunk_size = int(self.config.get("stream_chunk_size", 8192))
@@ -161,6 +257,53 @@ class TTSManager:
                         yield bytes(chunk)
         except Exception as e:
             logger.warning(f"[TTS] Streaming request failed: {e}")
+            return
+
+    @staticmethod
+    def _is_wav_bytes(payload: bytes) -> bool:
+        return len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WAVE"
+
+    def _resolve_cosyvoice_endpoint(self) -> str:
+        endpoint = "/inference_cross_lingual"
+        if self.cosyvoice_mode == "zero_shot":
+            endpoint = "/inference_zero_shot"
+        return f"{self.api_url.rstrip('/')}{endpoint}"
+
+    def _build_cosyvoice_form_data(self, text: str) -> aiohttp.FormData:
+        form = aiohttp.FormData()
+        form.add_field("tts_text", text)
+        if self.cosyvoice_mode == "zero_shot":
+            form.add_field("prompt_text", self.cosyvoice_ref_text)
+
+        ref_path = Path(self.cosyvoice_ref_audio_path)
+        ref_bytes = ref_path.read_bytes()
+        form.add_field(
+            "prompt_wav",
+            ref_bytes,
+            filename=ref_path.name or "prompt.wav",
+            content_type="application/octet-stream",
+        )
+        return form
+
+    async def _synthesize_stream_cosyvoice(self, text: str) -> AsyncGenerator[bytes, None]:
+        endpoint = self._resolve_cosyvoice_endpoint()
+        chunk_size = int(self.config.get("stream_chunk_size", 8192))
+        if chunk_size < 1024:
+            chunk_size = 1024
+        try:
+            form = self._build_cosyvoice_form_data(text)
+            session = await self.get_session()
+            async with session.post(endpoint, data=form) as resp:
+                if resp.status != 200:
+                    error_text = await resp.text()
+                    logger.warning(f"[TTS] CosyVoice stream returned {resp.status}: {error_text}")
+                    return
+
+                async for chunk in resp.content.iter_chunked(chunk_size):
+                    if chunk:
+                        yield bytes(chunk)
+        except Exception as e:
+            logger.warning(f"[TTS] CosyVoice streaming request failed: {e}")
             return
 
     def _build_doubao_headers(self) -> Dict[str, str]:
@@ -340,7 +483,32 @@ class TTSManager:
             logger.warning("[TTS] Doubao provider only supports streaming synthesize_stream()")
             return None
 
+        if self.type == "cosyvoice_http":
+            if self._config_error:
+                raise RuntimeError(f"[TTS] CosyVoice config invalid: {self._config_error}")
+            endpoint = self._resolve_cosyvoice_endpoint()
+            try:
+                form = self._build_cosyvoice_form_data(text)
+                session = await self.get_session()
+                async with session.post(endpoint, data=form) as resp:
+                    if resp.status == 200:
+                        audio_bytes = await resp.read()
+                        if not audio_bytes:
+                            return None
+                        if self._is_wav_bytes(audio_bytes):
+                            return audio_bytes
+                        return pcm16_to_wav_bytes(
+                            audio_bytes, sample_rate=self.cosyvoice_sample_rate, channels=1
+                        )
+                    error_text = await resp.text()
+                    logger.warning(f"[TTS] CosyVoice returned {resp.status}: {error_text}")
+                    return None
+            except Exception as e:
+                logger.warning(f"[TTS] CosyVoice request failed: {e}")
+                return None
+
         if self.type == "sovits":
+            await self._ensure_sovits_weights()
             endpoint = f"{self.api_url.rstrip('/')}/tts"
             params = self._build_sovits_params(text, streaming_mode=False)
 

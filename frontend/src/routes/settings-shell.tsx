@@ -10,6 +10,7 @@ type SettingsShellProps = {
 
 const MENU: Array<{ to: LinkProps['to']; label: string }> = [
   { to: '/settings/connection', label: '设备与连接' },
+  { to: '/settings/voice-setup', label: '语音配置向导' },
   { to: '/settings/avatar', label: '立绘管理' },
   { to: '/settings/avatar-studio', label: '立绘工作台' },
   { to: '/settings/diagnostics', label: '调试诊断' },
