@@ -1,0 +1,27 @@
+[
+  {
+    "source_id": "sherpa_onnx_official",
+    "repo": "k2-fsa/sherpa-onnx",
+    "enabled": true,
+    "channels": ["releases", "repo_files"],
+    "file_patterns": [
+      "sherpa-onnx-streaming-zipformer-ctc-zh-int8-*.tar.bz2",
+      "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-*.tar.bz2",
+      "sherpa-onnx-streaming-zipformer-zh-int8-*.tar.bz2",
+      "sherpa-onnx-streaming-zipformer-ctc-zh-int8-*.tar.gz",
+      "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-*.tar.gz",
+      "sherpa-onnx-streaming-zipformer-zh-int8-*.tar.gz",
+      "sherpa-onnx-streaming-zipformer-ctc-zh-int8-*.zip",
+      "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-*.zip",
+      "sherpa-onnx-streaming-zipformer-zh-int8-*.zip"
+    ],
+    "sha256_map": {
+      "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01.tar.bz2": "b3b309f7ce4a737195fcc6963ea19b0653a7d3401580af5ae0d3e284cbb71f0b",
+      "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30.tar.bz2": "5a2832047ea1f97dd0dc595b816c230c4bafad65cfc0341fa57517cadc50afd0",
+      "sherpa-onnx-streaming-zipformer-ctc-zh-int8-2025-06-30.tar.bz2": "f2ab7a5deb02717801f6a5b26c751b42f8a2db891b07f5b095e6da7442081448"
+    },
+    "license_spdx": "Apache-2.0",
+    "license_url": "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+    "extract_layout": "auto"
+  }
+]
