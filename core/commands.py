@@ -7,18 +7,21 @@ class CallMeCommand(BaseCommand):
     """Call Me 服务控制指令"""
     command_name = "call_me_command"
     command_description = "Call Me 插件服务控制 (start/stop/status)"
-    command_pattern = r"^/callme\s+(start|stop|status)$"
+    command_pattern = r"^/callme\s+(?P<action>start|stop|status)$"
     
     async def execute(self) -> Tuple[bool, Optional[str], int]:
-        action = self.matched_groups.get("group1")  # 正则分组1
+        action = self.matched_groups.get("action")
         if not action:
-            # 兼容有些正则解析可能没有 group1 的情况，或者 pattern 写法不同
-            # 这里 pattern 只有一个分组，通常是 group1
-            # 重新在这个 message plain_text 里找
+            # 兼容旧版注册器或手动实例化命令时没有注入命名分组的情况。
             import re
-            match = re.search(self.command_pattern, self.message.plain_text)
+            text = str(
+                getattr(self.message, "processed_plain_text", "")
+                or getattr(self.message, "raw_message", "")
+                or ""
+            )
+            match = re.search(self.command_pattern, text, re.IGNORECASE)
             if match:
-                action = match.group(1)
+                action = match.group("action")
             else:
                 return False, "参数错误", 0
 
