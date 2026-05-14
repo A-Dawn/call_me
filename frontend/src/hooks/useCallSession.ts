@@ -69,6 +69,16 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return false
 }
 
+function getMicPermissionHint(): string {
+  if (typeof window !== 'undefined' && !window.isSecureContext) {
+    return '麦克风不可用：浏览器要求 HTTPS 或 localhost 才允许录音；局域网 HTTP 请改用 HTTPS，或在 Chrome flags 信任当前地址'
+  }
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    return '麦克风不可用：当前浏览器或页面环境没有开放录音接口'
+  }
+  return '麦克风错误：请检查浏览器站点权限和系统输入设备'
+}
+
 export function useCallSessionController() {
   const [conn, setConn] = useAtom(connectionAtom)
   const [transcript, setTranscript] = useAtom(transcriptAtom)
@@ -563,11 +573,20 @@ export function useCallSessionController() {
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     if (conn.mic === 'on') return
 
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      appendLog(getMicPermissionHint())
+      return
+    }
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      appendLog(getMicPermissionHint())
+      return
+    }
+
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch (e) {
-      appendLog(`mic error: ${String(e)}`)
+      appendLog(`${getMicPermissionHint()}: ${String(e)}`)
       return
     }
 

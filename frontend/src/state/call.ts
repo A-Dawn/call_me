@@ -41,10 +41,15 @@ export const audioPlaybackAtom = atom<AudioPlaybackState>({
   audioEl: null,
 })
 
-export const httpBaseUrlAtom = atom<string>(() => {
+function getDefaultHttpBaseUrl(): string {
   const raw = import.meta.env.VITE_CALL_ME_BASE_URL as string | undefined
-  return raw?.trim() || 'http://127.0.0.1:8989'
-})
+  const configured = raw?.trim()
+  if (configured) return configured
+  if (typeof window !== 'undefined' && window.location.origin) return window.location.origin
+  return 'http://127.0.0.1:8989'
+}
+
+export const httpBaseUrlAtom = atom<string>(() => getDefaultHttpBaseUrl())
 
 export const wsUrlAtom = atom<string>((get) => {
   const httpBase = get(httpBaseUrlAtom)
